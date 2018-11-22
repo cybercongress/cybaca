@@ -1,0 +1,23 @@
+{
+  "name": "cybercon0",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bn.js": "^4.11.8",
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "chai-bignumber": "^3.0.0",
+    "eth-gas-reporter": "^0.1.12",
+    "ganache-cli": "^6.2.1",
+    "openzeppelin-solidity": "^2.0.0",
+    "truffle": "^4.1.14",
+    "web3": "^1.0.0-beta.36"
+  },
+  "devDependencies": {}
+}
