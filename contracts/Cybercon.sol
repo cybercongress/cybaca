@@ -1,5 +1,6 @@
 pragma solidity 0.4.25;
 
+// For Remix imports
 // import "http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 // import "http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/math/SafeMath.sol";
 // import "http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
@@ -8,7 +9,6 @@ pragma solidity 0.4.25;
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
-// import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
 
 
 contract Cybercon is Ownable, ERC721Full {
@@ -16,9 +16,9 @@ contract Cybercon is Ownable, ERC721Full {
     using SafeMath for uint256;
     
     struct Talk {
-        string speakerName;
-        string descSpeaker;
-        string deskTalk;
+        string  speakerName;
+        string  descSpeaker;
+        string  deskTalk;
         uint256 duration;
         uint256 bid;
         address speakerAddress;
@@ -32,7 +32,8 @@ contract Cybercon is Ownable, ERC721Full {
     }
     
     uint256 private auctionStart;
-    uint256 private checkinStart = 1544767200; //auctionEnd && eventStart
+    uint256 private auctionEnd = 1544767200;
+    uint256 private checkinStart = 1544767200;
     uint256 private checkinEnd = 1544792400;
     uint256 private distributionStart = 1544796000;
     // ------------
@@ -43,11 +44,12 @@ contract Cybercon is Ownable, ERC721Full {
     // ------------
     uint8 private   ticketsAmount = 200;
     uint8 private   speakersSlots = 8;
-    uint8 private   organizersShares = 80;
-    uint8 private   speakersShares = 20;
-    uint256 internal ticketsFunds = 0;
-    uint256 internal speakersFunds = 0;
-    uint256 internal speakersCheckinFunds = 0;
+    uint256 private speakearsStartShares = 80;
+    uint256 private speakersEndShares = 20;
+    // ------------
+    uint256 private ticketsFunds = 0;
+    uint256 private speakersDeposits = 0;
+    uint256 private speakersCheckinDeposits = 0;
     // ------------
     string private  eventSpace = "Korpus 8";
     
@@ -102,6 +104,8 @@ contract Cybercon is Ownable, ERC721Full {
         ticketsFunds = ticketsFunds.add(msg.value);
         ticketsAmount--;
         
+        if (ticketsAmount == 0) auctionEnd = block.timestamp;
+        
         emit TicketBid(bidId, msg.sender, msg.value);
     }
     
@@ -117,7 +121,7 @@ contract Cybercon is Ownable, ERC721Full {
     {
         require(_duration >= 900 && _duration <= 3600);
         require(msg.value > 0);
-        require(speakersTalks.length < speakersSlots);
+        require(uint8(speakersTalks.length) < speakersSlots);
         
         Talk memory t = (Talk(
         {
@@ -130,7 +134,7 @@ contract Cybercon is Ownable, ERC721Full {
             appliedAt:   block.timestamp,
             checkedIn:   false
         }));
-        speakersFunds = speakersFunds.add(msg.value);
+        speakersDeposits = speakersDeposits.add(msg.value);
         speakersTalks.push(t);
         
         emit TalkApplication(_speakerName, msg.sender, msg.value);
@@ -146,7 +150,7 @@ contract Cybercon is Ownable, ERC721Full {
         uint256 bidId = totalSupply();
         super._mint(msg.sender, bidId);
         speakersTalks[_talkId].checkedIn = true;
-        speakersCheckinFunds = speakersCheckinFunds.add(speakersTalks[_talkId].bid);
+        speakersCheckinDeposits = speakersCheckinDeposits.add(speakersTalks[_talkId].bid);
         
         emit SpeakerCheckin(_talkId, msg.sender);
     }
@@ -162,17 +166,24 @@ contract Cybercon is Ownable, ERC721Full {
             if (speakersTalks[i].checkedIn) checkedInSpeakers++;
         }
         
-        uint256 speakersValueDivider = uint256(organizersShares/speakersShares);
-        uint256 valueFromTicketsForSpeakers = ticketsFunds.div(speakersValueDivider);
-        uint256 valueForSpeakers = valueFromTicketsForSpeakers.add(speakersCheckinFunds);
+        uint256 valueForSpeakers = 0;
+        uint256 valueFromTicketsForSpeakers = 0;
+        if (auctionEnd != checkinStart) {
+            uint256 mul = auctionEnd.sub(auctionStart).mul(100).div(checkinStart.sub(auctionStart));
+            uint256 shares = speakearsStartShares.sub(speakersEndShares).mul(mul).div(100);
+            uint256 speakersShares = speakersEndShares.add(shares);
+            valueFromTicketsForSpeakers = ticketsFunds.mul(speakersShares).div(100);
+            valueForSpeakers = valueFromTicketsForSpeakers.add(speakersCheckinDeposits);
+        } else {
+            valueFromTicketsForSpeakers = ticketsFunds.mul(speakersEndShares).div(100);
+            valueForSpeakers = valueFromTicketsForSpeakers.add(speakersCheckinDeposits);
+        }
         uint256 valuePerSpeaker = valueForSpeakers.div(checkedInSpeakers);
-        
-        for (uint8 y = 0; y < speakersTalks.length; y++){
+        for (uint8 y = 0; y < speakersTalks.length; y++) {
             if (speakersTalks[y].checkedIn) {
                 address(speakersTalks[y].speakerAddress).transfer(valuePerSpeaker);
             } 
         }
-        
         address(owner()).transfer(address(this).balance);
     }
     
@@ -186,7 +197,9 @@ contract Cybercon is Ownable, ERC721Full {
         
         if (currentDiscount < (initialPrice - minimalPrice)) {
             return initialPrice.sub(currentDiscount);
-        } else { return minimalPrice; }
+        } else { 
+            return minimalPrice; 
+        }
     }
     
     function getTalkById(uint8 _id)
@@ -203,6 +216,7 @@ contract Cybercon is Ownable, ERC721Full {
             bool
         )
     {
+        require(_id < uint8(speakersTalks.length));
         Talk memory m = speakersTalks[_id];
         return(
             m.speakerName,
@@ -227,57 +241,111 @@ contract Cybercon is Ownable, ERC721Full {
         );
     }
     
+    function getAuctionStartTime()
+        external
+        view
+        returns(uint256)
+    {
+        return auctionStart;
+    }
+    
+    function getAuctionEndTime()
+        external
+        view
+        returns(uint256)
+    {
+        return auctionEnd;
+    }
+    
     function getEventStartTime()
         external
         view
         returns(uint256)
-    { return checkinStart; }
+    {
+        return checkinStart;
+    }
     
     function getEventEndTime()
         external
         view
         returns(uint256)
-    { return checkinEnd; }
+    {
+        return checkinEnd;
+    }
     
     function getDistributionTime()
         external
         view
         returns(uint256)
-    { return distributionStart; }
+    {
+        return distributionStart;
+    }
     
     function getMinimalPrice()
         external
         view
         returns(uint256)
-    { return minimalPrice; }
+    {
+        return minimalPrice;
+    }
     
     function getTicketsAmount()
         external
         view
         returns(uint8)
-    { return ticketsAmount; }
+    {
+        return ticketsAmount;
+    }
     
     function getSpeakersSlots()
         external
         view
         returns(uint8)
-    { return speakersSlots; }
+    {
+        return speakersSlots;
+    }
     
-    function getOrganizersShares()
+    function getAvailableSpeaksersSlots()
         external
         view
         returns(uint8)
-    { return organizersShares; }
+    { 
+        return speakersSlots - uint8(speakersTalks.length); 
+    }
     
     function getSpeakersShares()
         external
         view
-        returns(uint8)
-    { return speakersShares; }
+        returns(uint256)
+    {
+        uint256 time = auctionEnd;
+        if ( ticketsAmount > 0 ) time = block.timestamp;
+        uint256 mul = time.sub(auctionStart).mul(100).div(checkinStart.sub(auctionStart));
+        uint256 shares = speakearsStartShares.sub(speakersEndShares).mul(mul).div(100);
+        return speakersEndShares.add(shares);
+    }
+    
+    function getTicketsFunds()
+        external
+        view
+        returns(uint256)
+    {
+        return ticketsFunds;
+    }
+    
+    function getSpeakersDeposits()
+        external
+        view
+        returns(uint256)
+    {
+        return speakersDeposits;
+    }
     
     function getPlace()
         external
         view
         returns(string)
-    { return eventSpace; }
+    { 
+        return eventSpace;
+    }
 }
