@@ -165,24 +165,22 @@ contract Cybercon is Ownable, ERC721Full {
         for (uint8 i = 0; i < speakersTalks.length; i++){
             if (speakersTalks[i].checkedIn) checkedInSpeakers++;
         }
-        
-        uint256 valueForSpeakers = 0;
+    
         uint256 valueFromTicketsForSpeakers = 0;
         if (auctionEnd != checkinStart) {
             uint256 mul = auctionEnd.sub(auctionStart).mul(100).div(checkinStart.sub(auctionStart));
             uint256 shares = speakearsStartShares.sub(speakersEndShares).mul(mul).div(100);
             uint256 speakersShares = speakersEndShares.add(shares);
             valueFromTicketsForSpeakers = ticketsFunds.mul(speakersShares).div(100);
-            valueForSpeakers = valueFromTicketsForSpeakers.add(speakersCheckinDeposits);
         } else {
             valueFromTicketsForSpeakers = ticketsFunds.mul(speakersEndShares).div(100);
-            valueForSpeakers = valueFromTicketsForSpeakers.add(speakersCheckinDeposits);
         }
-        uint256 valuePerSpeaker = valueForSpeakers.div(checkedInSpeakers);
+        
+        uint256 valuePerSpeakerFromTickets = valueFromTicketsForSpeakers.div(checkedInSpeakers);
         for (uint8 y = 0; y < speakersTalks.length; y++) {
             if (speakersTalks[y].checkedIn) {
-                address(speakersTalks[y].speakerAddress).transfer(valuePerSpeaker);
-            } 
+                address(speakersTalks[y].speakerAddress).transfer(valuePerSpeakerFromTickets.add(speakersTalks[y].bid));
+            }
         }
         address(owner()).transfer(address(this).balance);
     }
@@ -313,8 +311,16 @@ contract Cybercon is Ownable, ERC721Full {
         return speakersSlots - uint8(speakersTalks.length); 
     }
     
-    function getSpeakersShares()
+    function getOrganizersShares()
         external
+        view
+        returns(uint256)
+    {
+        return uint256(100).sub(getSpeakersShares());
+    }
+    
+    function getSpeakersShares()
+        public
         view
         returns(uint256)
     {
