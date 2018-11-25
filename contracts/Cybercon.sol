@@ -34,6 +34,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     // ------------
     uint256 private initialPrice = 1500 finney;
     uint256 private minimalPrice = 300 finney;
+    uint256 private endPrice = 300 finney;
     uint256 private timeframe    = 3600;
     uint256 private timeframeDowngrade = 3 finney;
     // ------------
@@ -49,6 +50,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     string private  eventSpace = "Korpus 8";
     
     mapping(address => bool) private membersBidded;
+    bool private bidsDistributed = false;
     
     Bid[]  private membersBids;
     Talk[] private speakersTalks;
@@ -153,35 +155,54 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         emit SpeakerCheckin(_talkId, msg.sender);
     }
     
-    function distributeProfit()
+    function distributeBids()
         external
-        onlyOwner
+        nonReentrant
+    {   
+        require(block.timestamp > distributionStart);
+        uint256 checkedInSpeakers = 0;
+        for (uint8 y = 0; y < speakersTalks.length; y++){
+            if (speakersTalks[y].checkedIn) checkedInSpeakers++;
+        }
+        for (uint256 i = 0; i < totalSupply().sub(checkedInSpeakers); i++) {
+            address bidderAddress = membersBids[i].bidderAddress;
+            uint256 bidderValue = membersBids[i].value;
+            address(bidderAddress).transfer(bidderValue.sub(endPrice));
+        }
+        bidsDistributed = true;
+        address(msg.sender).transfer(1000000000000000000); // transfer 1 ETH to caller
+    }
+    
+    function distributeRewards()
+        external
         nonReentrant
     {
+        require(bidsDistributed == true);
         require(block.timestamp > distributionStart);
-        
         uint256 checkedInSpeakers = 0;
-        for (uint8 i = 0; i < speakersTalks.length; i++){
-            if (speakersTalks[i].checkedIn) checkedInSpeakers++;
-        }
-    
-        uint256 valueFromTicketsForSpeakers = 0;
-        if (auctionEnd != checkinStart) {
-            uint256 mul = auctionEnd.sub(auctionStart).mul(100).div(checkinStart.sub(auctionStart));
-            uint256 shares = speakearsStartShares.sub(speakersEndShares).mul(mul).div(100);
-            uint256 speakersShares = speakersEndShares.add(shares);
-            valueFromTicketsForSpeakers = ticketsFunds.mul(speakersShares).div(100);
-        } else {
-            valueFromTicketsForSpeakers = ticketsFunds.mul(speakersEndShares).div(100);
-        }
-        
-        uint256 valuePerSpeakerFromTickets = valueFromTicketsForSpeakers.div(checkedInSpeakers);
-        for (uint8 y = 0; y < speakersTalks.length; y++) {
-            if (speakersTalks[y].checkedIn) {
-                address(speakersTalks[y].speakerAddress).transfer(valuePerSpeakerFromTickets.add(speakersTalks[y].bid));
+        if (speakersTalks.length > 0) {
+            for (uint8 i = 0; i < speakersTalks.length; i++){
+                if (speakersTalks[i].checkedIn) checkedInSpeakers++;
+            }
+            uint256 valueForTicketsForReward = endPrice.mul(membersBids.length);
+            uint256 valueFromTicketsForSpeakers = 0;
+            if (auctionEnd != checkinStart) {
+                uint256 mul = auctionEnd.sub(auctionStart).mul(100).div(checkinStart.sub(auctionStart));
+                uint256 shares = speakearsStartShares.sub(speakersEndShares).mul(mul).div(100);
+                uint256 speakersShares = speakersEndShares.add(shares);
+                valueFromTicketsForSpeakers = valueForTicketsForReward.mul(speakersShares).div(100);
+            } else {
+                valueFromTicketsForSpeakers = valueForTicketsForReward.mul(speakersEndShares).div(100);
+            }
+            
+            uint256 valuePerSpeakerFromTickets = valueFromTicketsForSpeakers.div(checkedInSpeakers);
+            for (uint8 y = 0; y < speakersTalks.length; y++) {
+                if (speakersTalks[y].checkedIn) {
+                    address(speakersTalks[y].speakerAddress).transfer(valuePerSpeakerFromTickets.add(speakersTalks[y].bid));
+                }
             }
         }
-        // throw if speaker = 0
+        address(msg.sender).transfer(1000000000000000000); // transfer 1 ETH to caller
         address(owner()).transfer(address(this).balance);
     }
     
