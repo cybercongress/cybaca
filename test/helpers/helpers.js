@@ -1,9 +1,9 @@
-const BigNumber = web3.utils.BigNumber;
-
-const should = require('chai')
-    .use(require('chai-as-promised'))
-    .use(require('chai-bignumber')(BigNumber))
-    .should()
+// const BigNumber = web3.utils.BigNumber;
+// 
+// const should = require('chai')
+//     .use(require('chai-as-promised'))
+//     .use(require('chai-bignumber')(BigNumber))
+//     .should()
 
 function getRandomString (len, charSet) {
         charSet = charSet || 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -22,7 +22,7 @@ function getRandomInt (min, max) {
     }
 
 module.exports = {
-    should,
+    // should,
     getRandomString,
     getRandomInt
 }

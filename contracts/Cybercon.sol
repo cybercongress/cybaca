@@ -1,17 +1,12 @@
 pragma solidity 0.4.25;
 
-// For Remix imports
-// import "http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/ownership/Ownable.sol";
-// import "http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/math/SafeMath.sol";
-// import "http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
-// import "http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
-
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
+import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 
 
-contract Cybercon is Ownable, ERC721Full {
+contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     
     using SafeMath for uint256;
     
@@ -87,10 +82,11 @@ contract Cybercon is Ownable, ERC721Full {
         require(block.timestamp < checkinStart);
         _;
     }
-    
+
     function buyTicket()
         external
         beforeEventStart
+        nonReentrant
         payable
     {
         require(msg.value >= getCurrentPrice());
@@ -117,6 +113,7 @@ contract Cybercon is Ownable, ERC721Full {
     )
         external
         beforeEventStart
+        nonReentrant
         payable
     {
         require(_duration >= 900 && _duration <= 3600);
@@ -143,6 +140,7 @@ contract Cybercon is Ownable, ERC721Full {
     function checkinSpeaker(uint8 _talkId)
         external
         onlyOwner
+        nonReentrant
     {
         require(block.timestamp >= checkinStart && block.timestamp < checkinEnd);
         require(speakersTalks[_talkId].checkedIn == false);
@@ -156,8 +154,9 @@ contract Cybercon is Ownable, ERC721Full {
     }
     
     function distributeProfit()
-        public
+        external
         onlyOwner
+        nonReentrant
     {
         require(block.timestamp > distributionStart);
         
@@ -182,6 +181,7 @@ contract Cybercon is Ownable, ERC721Full {
                 address(speakersTalks[y].speakerAddress).transfer(valuePerSpeakerFromTickets.add(speakersTalks[y].bid));
             }
         }
+        // throw if speaker = 0
         address(owner()).transfer(address(this).balance);
     }
     
