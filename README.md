@@ -7,7 +7,7 @@ npm i
 
 ### Tests
 ```
-ganache-cli -p 8545 -a 210 -e 100
+ganache-cli -p 8545 -a 250 -e 100
 ```
 
 ### Migration

@@ -15,7 +15,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         string  descSpeaker;
         string  deskTalk;
         uint256 duration;
-        uint256 bid;
+        uint256 deposit;
         address speakerAddress;
         uint256 appliedAt;
         bool    checkedIn;
@@ -52,8 +52,10 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     mapping(address => bool) private membersBidded;
     bool private bidsDistributed = false;
     
-    Bid[]  private membersBids;
-    Talk[] private speakersTalks;
+    Bid[]   private membersBids;
+    Talk[]  private speakersTalks;
+    uint8[] private talksGrid;
+    uint8[] private workshopsGrid;
     
     event TicketBid(
         uint256 _id,
@@ -102,7 +104,10 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         ticketsFunds = ticketsFunds.add(msg.value);
         ticketsAmount--;
         
-        if (ticketsAmount == 0) auctionEnd = block.timestamp;
+        if (ticketsAmount == 0) {
+            auctionEnd = block.timestamp;
+            endPrice = msg.value;
+        }
         
         emit TicketBid(bidId, msg.sender, msg.value);
     }
@@ -128,7 +133,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
             descSpeaker: _descSpeaker,
             deskTalk:    _deskTalk,
             duration:    _duration,
-            bid:         msg.value,
+            deposit:         msg.value,
             speakerAddress: msg.sender,
             appliedAt:   block.timestamp,
             checkedIn:   false
@@ -139,10 +144,25 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         emit TalkApplication(_speakerName, msg.sender, msg.value);
     }
     
+    // function declineTalk(uint8 _talkId)
+    //     external
+    //     onlyOwner
+    // {
+    //     require(block.timestamp < checkinStart);
+    // 
+    //     uint256 lastTalkIndex = speakersTalks.length.sub(1);
+    //     Talk memory lastTalk = speakersTalks[lastTalkIndex];
+    // 
+    //     address(speakersTalks[_talkId].speakerAddress).transfer(speakersTalks[_talkId].deposit);
+    // 
+    //     speakersTalks[_talkId] = lastTalk;
+    //     delete speakersTalks[lastTalkIndex];
+    //     speakersTalks.length--;
+    // }
+    
     function checkinSpeaker(uint8 _talkId)
         external
         onlyOwner
-        nonReentrant
     {
         require(block.timestamp >= checkinStart && block.timestamp < checkinEnd);
         require(speakersTalks[_talkId].checkedIn == false);
@@ -150,7 +170,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         uint256 bidId = totalSupply();
         super._mint(msg.sender, bidId);
         speakersTalks[_talkId].checkedIn = true;
-        speakersCheckinDeposits = speakersCheckinDeposits.add(speakersTalks[_talkId].bid);
+        speakersCheckinDeposits = speakersCheckinDeposits.add(speakersTalks[_talkId].deposit);
         
         emit SpeakerCheckin(_talkId, msg.sender);
     }
@@ -164,10 +184,11 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         for (uint8 y = 0; y < speakersTalks.length; y++){
             if (speakersTalks[y].checkedIn) checkedInSpeakers++;
         }
-        for (uint256 i = 0; i < totalSupply().sub(checkedInSpeakers); i++) {
+        uint256 ticketsForMembersSupply = totalSupply().sub(checkedInSpeakers);
+        for (uint256 i = 0; i < ticketsForMembersSupply; i++) {
             address bidderAddress = membersBids[i].bidderAddress;
-            uint256 bidderValue = membersBids[i].value;
-            address(bidderAddress).transfer(bidderValue.sub(endPrice));
+            uint256 overbid = (membersBids[i].value).sub(endPrice);
+            address(bidderAddress).transfer(overbid);
         }
         bidsDistributed = true;
         address(msg.sender).transfer(1000000000000000000); // transfer 1 ETH to caller
@@ -179,8 +200,8 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     {
         require(bidsDistributed == true);
         require(block.timestamp > distributionStart);
-        uint256 checkedInSpeakers = 0;
         if (speakersTalks.length > 0) {
+            uint256 checkedInSpeakers = 0;
             for (uint8 i = 0; i < speakersTalks.length; i++){
                 if (speakersTalks[i].checkedIn) checkedInSpeakers++;
             }
@@ -198,7 +219,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
             uint256 valuePerSpeakerFromTickets = valueFromTicketsForSpeakers.div(checkedInSpeakers);
             for (uint8 y = 0; y < speakersTalks.length; y++) {
                 if (speakersTalks[y].checkedIn) {
-                    address(speakersTalks[y].speakerAddress).transfer(valuePerSpeakerFromTickets.add(speakersTalks[y].bid));
+                    address(speakersTalks[y].speakerAddress).transfer(valuePerSpeakerFromTickets.add(speakersTalks[y].deposit));
                 }
             }
         }
@@ -206,19 +227,18 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         address(owner()).transfer(address(this).balance);
     }
     
-    function getCurrentPrice()
-        public
-        view
-        returns(uint256)
+    function setTalksGrid(uint8[] _grid)
+        external
+        onlyOwner
     {
-        uint256 secondsPassed = block.timestamp - auctionStart;
-        uint256 currentDiscount = (secondsPassed.div(timeframe)).mul(timeframeDowngrade);
-        
-        if (currentDiscount < (initialPrice - minimalPrice)) {
-            return initialPrice.sub(currentDiscount);
-        } else { 
-            return minimalPrice; 
-        }
+        talksGrid = _grid;
+    }
+    
+    function setWorkshopsGrid(uint8[] _grid)
+        external
+        onlyOwner
+    {
+        workshopsGrid = _grid;
     }
     
     function getTalkById(uint8 _id)
@@ -242,7 +262,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
             m.descSpeaker,
             m.deskTalk,
             m.duration,
-            m.bid,
+            m.deposit,
             m.speakerAddress,
             m.appliedAt,
             m.checkedIn
@@ -298,6 +318,29 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         returns(uint256)
     {
         return distributionStart;
+    }
+    
+    function getCurrentPrice()
+        public
+        view
+        returns(uint256)
+    {
+        uint256 secondsPassed = block.timestamp - auctionStart;
+        uint256 currentDiscount = (secondsPassed.div(timeframe)).mul(timeframeDowngrade);
+        
+        if (currentDiscount < (initialPrice - minimalPrice)) {
+            return initialPrice.sub(currentDiscount);
+        } else { 
+            return minimalPrice; 
+        }
+    }
+    
+    function getEndPrice()
+        external
+        view
+        returns(uint256)
+    {
+        return endPrice;
     }
     
     function getMinimalPrice()
@@ -374,5 +417,21 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         returns(string)
     { 
         return eventSpace;
+    }
+    
+    function getTalksGrid()
+        external
+        view
+        returns(uint8[])
+    {
+        return talksGrid;
+    }
+    
+    function getWorkshopsGrid()
+        external
+        view
+        returns(uint8[])
+    {
+        return workshopsGrid;
     }
 }

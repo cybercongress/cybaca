@@ -1,6 +1,8 @@
 /node_modules
 /build
 
+infura_deploy.json
+
 .DS_Store
 yarn.lock
 yarn-error.log
