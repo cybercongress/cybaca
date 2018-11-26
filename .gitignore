@@ -2,6 +2,7 @@
 /build
 
 infura_deploy.json
+cybercon0_full.sol
 
 .DS_Store
 yarn.lock
