@@ -37,7 +37,7 @@ truffle-flattener contracts/Cybercon.sol > cybercon0_full.sol
 ##### applyForTalk
 ```
 1. Anybody may apply for talk, but less than 32 proposals.
-2. Shoud provide deposit more or equal than minimal speaker deposit.
+2. Should provide deposit more or equal than minimal speaker deposit.
 ```
 
 ##### acceptTalk
@@ -52,8 +52,13 @@ truffle-flattener contracts/Cybercon.sol > cybercon0_full.sol
 2. Send deposit back to applier.
 ```
 
-#### Talk Deposit Self Return
-##### checkMissedTalk
+##### updateTalkDescription
+```
+1. Speaker may update self and talk description for their talk.
+```
+
+#### Talks self decline
+##### selfDeclineTalk
 ```
 1. If talk was not checked for different reasons (missed, no more slots, etc) by organizer, 
 than applier or organizer may decline talk and transfer deposit back to applier.
