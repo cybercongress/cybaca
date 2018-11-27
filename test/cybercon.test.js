@@ -35,7 +35,7 @@ contract("Cybercon", (accounts) => {
         } else { return MINIMAL_PRICE; }
     }
     
-    function calculatedSpeakersShares(time) {
+    function calculatedOrganizersShares(time) {
         let timeDiff = (new BN(time.toString())).sub(new BN(deployed.toString()));
         let totalTime = (new BN(CHECKIN_START.toString())).sub(new BN(deployed.toString()));
         let timeDiff100 = new BN(timeDiff.mul(new BN('100'))); // refactor this line
@@ -43,18 +43,17 @@ contract("Cybercon", (accounts) => {
         let divShares = (new BN(SPEAKERS_START_SHARES.toString())).sub(new BN(SPEAKERS_END_SHARES.toString()));
         let divSharesMul = divShares.mul(mul);
         let calcCurrentSharesAdd = divSharesMul.div(new BN('100'));
-        let speakersShares = calcCurrentSharesAdd.add(new BN(SPEAKERS_END_SHARES.toString()));
-        return speakersShares;
+        let organizerShares = calcCurrentSharesAdd.add(new BN(SPEAKERS_END_SHARES.toString()));
+        return organizerShares;
     }
     
     const CYBERCON_ORGANIZER = accounts[0];
-    const RANDOM_WALKER = accounts[249];
     
-    const CYBERCON_NAME = "Cybercon0";
-    const CYBERCON_SYMBOL = "CYBERCON0";
+    const CYBERCON_NAME = "cyberc0n";
+    const CYBERCON_SYMBOL = "CYBERC0N";
     const CYBERCON_PLACE = "Korpus 8";
     
-    const TICKETS_AMOUNT = 100;
+    const TICKETS_AMOUNT = 20;
     const SPEAKERS_SLOTS = 10;
     
     const SPEAKERS_START_SHARES = 80;
@@ -62,10 +61,10 @@ contract("Cybercon", (accounts) => {
     
     const INITIAL_PRICE = web3.utils.toWei(new BN(1000), 'finney');
     const MINIMAL_PRICE = web3.utils.toWei(new BN(40), 'finney');
-    const BID_TIMEFRAME_DECREASE = web3.utils.toWei(new BN(2), 'finney');
+    const BID_TIMEFRAME_DECREASE = web3.utils.toWei(new BN(3), 'finney');
     const TIMEFRAME = 50;
     
-    const EXPECTED_START = 1543312800; // ~13.00 27 november
+    const EXPECTED_START = 1543327800; // ~17.10 27 november
     const TALKS_APPLICATION_END = 1543339800 // 20.30
     const CHECKIN_START = 1543345200; // 22.00
     const CHECKIN_END = 1543347000; // 22.30
@@ -100,6 +99,12 @@ contract("Cybercon", (accounts) => {
             (await cybercon.getDistributionTime()).toNumber().should.equal(DISTRIBUTION_START);
         });
         
+        it("initial organizers and speakers shares should be equal", async() => {
+            (await cybercon.getOrganizersShares()).toNumber().should.equal(SPEAKERS_END_SHARES);
+            (await cybercon.getSpeakersShares()).toNumber().should.equal(SPEAKERS_START_SHARES);
+            (SPEAKERS_END_SHARES + SPEAKERS_START_SHARES).should.be.equal(100);
+        });
+        
         it("tickets amount should equal", async() => {
             (await cybercon.getTicketsAmount()).toNumber().should.equal(TICKETS_AMOUNT);
         });
@@ -131,7 +136,7 @@ contract("Cybercon", (accounts) => {
                 bidFromContract[1].should.be.equal(accounts[i]);
                 await cybercon.buyTicket({ from: accounts[i], value: bid }).should.be.rejected;
     
-                await increase(200);
+                await increase(50);
             }
     
             expect(await web3.eth.getBalance(cybercon.address)).to.eq.BN(ticketsFunds);
@@ -146,9 +151,10 @@ contract("Cybercon", (accounts) => {
                     ds: getRandomString(128),
                     dt: getRandomString(256),
                     du: getRandomInt(900, 3600),
-                    va: (new BN(getRandomInt(1000, 5000).toString())).mul(new BN('1000000000000000'))
+                    va: (new BN(getRandomInt(1000, 5000).toString())).mul(new BN('1000000000000000')),
+                    pr: getRandomString(132)
                 }
-                await cybercon.applyForTalk(talk.sn, talk.ds, talk.dt, talk.du,
+                await cybercon.applyForTalk(talk.sn, talk.ds, talk.dt, talk.du, talk.pr,
                     {
                         from: accounts[i],
                         value: talk.va
@@ -164,6 +170,7 @@ contract("Cybercon", (accounts) => {
                 expect(talkFromContract[4]).to.eq.BN(talk.va);
                 talkFromContract[5].should.be.equal(accounts[i]);
                 talkFromContract[8].toNumber().should.be.equal(ApplicationStatus.Applied);
+                talkFromContract[9].should.be.equal(talk.pr);
     
                 await increase(60);
             }
@@ -177,8 +184,9 @@ contract("Cybercon", (accounts) => {
                 let talk = {
                     ds: getRandomString(128),
                     dt: getRandomString(256),
+                    pr: getRandomString(132)
                 }
-                await cybercon.updateTalkDescription((i-200), talk.ds, talk.dt,
+                await cybercon.updateTalkDescription((i-200), talk.ds, talk.dt, talk.pr,
                     {
                         from: accounts[i]
                     }
@@ -187,6 +195,7 @@ contract("Cybercon", (accounts) => {
                 let talkFromContract = await cybercon.getTalkById(i-200);
                 talkFromContract[1].should.be.equal(talk.ds);
                 talkFromContract[2].should.be.equal(talk.dt);
+                talkFromContract[9].should.be.equal(talk.pr);
             }
         })
         
@@ -243,7 +252,7 @@ contract("Cybercon", (accounts) => {
                 bidFromContract[1].should.be.equal(accounts[i]);
                 await cybercon.buyTicket({ from: accounts[i], value: bid }).should.be.rejected;
     
-                await increase(50);
+                await increase(10);
             }
     
             expect(await cybercon.getTicketsFunds()).to.eq.BN(ticketsFunds);
@@ -271,36 +280,32 @@ contract("Cybercon", (accounts) => {
         it("should correctly distribute overbids", async() => {
             await increaseTo(DISTRIBUTION_START)
             let membersBalancesBefore = [];
-            // let membersBalancesAfter = [];
             let endPrice = new BN(await cybercon.getEndPrice());
-            let walkerBalanceBefore = (new BN(await web3.eth.getBalance(RANDOM_WALKER)));
             for (var i = 0; i < TICKETS_AMOUNT; i++){
                 membersBalancesBefore.push(new BN(await web3.eth.getBalance(accounts[i])));
             }
-            await cybercon.distributeOverbids({ from: RANDOM_WALKER }).should.be.fulfilled;
+            await cybercon.distributeOverbids({ from: CYBERCON_ORGANIZER }).should.be.fulfilled;
             for (var i = 0; i < TICKETS_AMOUNT; i++){
                 let balanceAfter = new BN(await web3.eth.getBalance(accounts[i]));
                 let diff = new BN(balanceAfter.sub(membersBalancesBefore[i]));
                 let overbid = new BN(ticketsBids[i].sub(endPrice));
                 expect(diff).to.eq.BN(overbid);
             }
-            let walkerBalanceAfter = (new BN(await web3.eth.getBalance(RANDOM_WALKER)));
-            expect(walkerBalanceAfter.sub(walkerBalanceBefore)).to.gt.BN(new BN('900000000000000000')); // gas payed by walker
         })
     
         it("should correctly distribute rewards", async() => {
-            let walkerBalanceBefore = (new BN(await web3.eth.getBalance(RANDOM_WALKER)));
             let organizerBalance = new BN(await web3.eth.getBalance(CYBERCON_ORGANIZER));
             let speakersBalances = [];
             for (var i = 200; i < 200+SPEAKERS_SLOTS; i++){
                 speakersBalances.push(new BN(await web3.eth.getBalance(accounts[i])));
             }
-            let calculatedShares = calculatedSpeakersShares(await cybercon.getAuctionEndTime());
+            let calculatedShares = calculatedOrganizersShares(await cybercon.getAuctionEndTime());
+            let calculatedSpeakersShares = (new BN('100')).sub(calculatedShares);
             console.log("_______________");
-            console.log("Calculated Speakers Shares: ", calculatedShares.toString(10));
+            console.log("Calculated Speakers Shares: ", calculatedSpeakersShares.toString(10));
             console.log("Actual Speakers shares: ", (await cybercon.getSpeakersShares()).toString());
             console.log("_______________");
-            expect(await cybercon.getSpeakersShares()).to.eq.BN(calculatedShares);
+            expect(await cybercon.getSpeakersShares()).to.eq.BN(calculatedSpeakersShares);
     
             let endPrice = new BN(await cybercon.getEndPrice());
             console.log("End Price: ", web3.utils.fromWei(await cybercon.getEndPrice(), 'ether').toString());
@@ -308,8 +313,8 @@ contract("Cybercon", (accounts) => {
             let valueFromTicketsForReward = endPrice.mul(new BN(TICKETS_AMOUNT));
             console.log("Tickets Funds: ", web3.utils.fromWei(valueFromTicketsForReward, 'ether').toString());
             console.log("_______________");
-            await cybercon.distributeRewards({ from: RANDOM_WALKER }).should.be.fulfilled;
-            let valuePerSpeaker = (valueFromTicketsForReward.mul(calculatedShares).div(new BN('100'))).div(new BN(SPEAKERS_SLOTS.toString()));
+            await cybercon.distributeRewards({ from: CYBERCON_ORGANIZER }).should.be.fulfilled;
+            let valuePerSpeaker = (valueFromTicketsForReward.mul(calculatedSpeakersShares).div(new BN('100'))).div(new BN(SPEAKERS_SLOTS.toString()));
             for (var i = 200; i < 200+SPEAKERS_SLOTS; i++){
                 let talkFromContract = await cybercon.getTalkById(i-200);
                 let speakerBalanceAfter = new BN(await web3.eth.getBalance(accounts[i]));
@@ -332,9 +337,6 @@ contract("Cybercon", (accounts) => {
             console.log("Organizer's balance after: ", web3.utils.fromWei(organizerBalanceAfter, 'ether'));
             console.log("Organizer's balance diff: ", web3.utils.fromWei((organizerBalanceAfter.sub(organizerBalance)), 'ether'));
             expect(organizerBalanceAfter).to.gt.BN(organizerBalance);
-    
-            let walkerBalanceAfter = (new BN(await web3.eth.getBalance(RANDOM_WALKER)));
-            expect(walkerBalanceAfter.sub(walkerBalanceBefore)).to.gt.BN(new BN('900000000000000000')); // gas payed by walker
         })
     })
 })
