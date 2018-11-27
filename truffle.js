@@ -13,7 +13,6 @@ module.exports = {
               return new HDWalletProvider(infuraConfig.privateKey, infuraConfig.infuraUrl);
             },
             from: infuraConfig.fromAddress,
-
             network_id: 4,
             gasPrice: toWei(10, 'gwei').toNumber(),
             gas: toWei(6, 'mwei').toNumber()

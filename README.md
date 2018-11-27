@@ -40,6 +40,13 @@ truffle-flattener contracts/Cybercon.sol > cybercon0_full.sol
 2. Should provide deposit more or equal than minimal speaker deposit.
 ```
 
+##### updateTalkDescription
+```
+1. Speaker may update self and talk description for their talk.
+```
+
+#### Talk Accept or Decline
+
 ##### acceptTalk
 ```
 1. Organizer accepts interested talk .
@@ -52,12 +59,7 @@ truffle-flattener contracts/Cybercon.sol > cybercon0_full.sol
 2. Send deposit back to applier.
 ```
 
-##### updateTalkDescription
-```
-1. Speaker may update self and talk description for their talk.
-```
-
-#### Talks self decline
+#### Self Decline Talk
 ##### selfDeclineTalk
 ```
 1. If talk was not checked for different reasons (missed, no more slots, etc) by organizer, 
@@ -85,3 +87,5 @@ than applier or organizer may decline talk and transfer deposit back to applier.
 4. Speakers reward linked to last sold ticket. Goes down from 80(start auction) to 20(start event).
 ```
 
+### Gas Usage 
+![gas_usage](docs/gas_usage.png)

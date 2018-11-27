@@ -1,14 +1,16 @@
 pragma solidity 0.4.25;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
+import "openzeppelin-solidity/contracts/utils/Address.sol";
 
 
 contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     
     using SafeMath for uint256;
+    using Address for address;
     
     enum ApplicationStatus {Applied, Accepted, Declined}
     
@@ -30,19 +32,19 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     }
     
     uint256 private auctionStart;
-    uint256 constant private TALKS_APPLICATION_END = 1544572800;
-    uint256 private auctionEnd = 1544767200;
-    uint256 constant private CHECKIN_START = 1544767200;
-    uint256 constant private CHECKIN_END = 1544792400;
-    uint256 constant private DISTRIBUTION_START = 1544796000;
+    uint256 constant private TALKS_APPLICATION_END = 1543339800;
+    uint256 private auctionEnd = 1543345200;
+    uint256 constant private CHECKIN_START = 1543345200;
+    uint256 constant private CHECKIN_END = 1543347000;
+    uint256 constant private DISTRIBUTION_START = 1543348800;
     // ------------
-    uint256 constant private INITIAL_PRICE = 1500 finney;
-    uint256 constant private MINIMAL_PRICE = 300 finney;
-    uint256 private endPrice = 300 finney;
-    uint256 constant private TIMEFRAME    = 3600;
-    uint256 constant private TIMEFRAME_DOWNGRADE = 3 finney;
+    uint256 constant private INITIAL_PRICE = 1000 finney;
+    uint256 constant private MINIMAL_PRICE = 40 finney;
+    uint256 private endPrice = 40 finney;
+    uint256 constant private TIMEFRAME = 50;
+    uint256 constant private BID_TIMEFRAME_DECREASE = 2 finney;
     // ------------
-    uint256 private ticketsAmount = 200;
+    uint256 private ticketsAmount = 100;
     uint256 constant private SPEAKERS_SLOTS = 10;
     uint256 private acceptedSpeakersSlots = 0;
     uint256 constant private SPEAKERS_START_SHARES = 80;
@@ -51,7 +53,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     uint256 private ticketsFunds = 0;
     uint256 constant private MINIMAL_SPEAKER_DEPOSIT = 1000 finney;
     // ------------
-    string constant private EVENT_SPACE_NAME = "Korpus 8";
+    string constant private CYBERCON_PLACE = "Korpus 8";
     
     mapping(address => bool) private membersBidded;
     bool private overbidsDistributed = false;
@@ -81,6 +83,11 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     
     function() external {}
     
+    modifier onlyIfAddress(address _caller) {
+        require(_caller.isContract() == false);
+        _;
+    }
+    
     modifier beforeApplicationStop() {
         require(block.timestamp < TALKS_APPLICATION_END);
         _;
@@ -104,6 +111,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     function buyTicket()
         external
         beforeEventStart
+        onlyIfAddress(msg.sender)
         nonReentrant
         payable
     {
@@ -134,6 +142,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     )
         external
         beforeApplicationStop
+        onlyIfAddress(msg.sender)
         nonReentrant
         payable
     {
@@ -165,6 +174,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     )
         external
         beforeApplicationStop
+        onlyIfAddress(msg.sender)
         nonReentrant
     {
         require(msg.sender == speakersTalks[_talkId].speakerAddress);
@@ -194,9 +204,10 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     
     function selfDeclineTalk(uint256 _talkId)
         external
+        onlyIfAddress(msg.sender)
         nonReentrant
     {
-        require(block.timestamp > TALKS_APPLICATION_END && block.timestamp < CHECKIN_START);
+        require(block.timestamp >= TALKS_APPLICATION_END && block.timestamp < CHECKIN_START);
         require(msg.sender == speakersTalks[_talkId].speakerAddress);
         require(speakersTalks[_talkId].status == ApplicationStatus.Applied);
         speakersTalks[_talkId].status = ApplicationStatus.Declined;
@@ -219,6 +230,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     function distributeOverbids()
         external
         nonReentrant
+        onlyIfAddress(msg.sender)
         afterDistributionStart
     {   
         uint256 checkedInSpeakers = 0;
@@ -238,6 +250,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     function distributeRewards()
         external
         nonReentrant
+        onlyIfAddress(msg.sender)
         afterDistributionStart
     {
         require(overbidsDistributed == true);
@@ -293,7 +306,8 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
             uint256,
             address,
             uint256,
-            bool
+            bool,
+            ApplicationStatus
         )
     {
         require(_id < uint256(speakersTalks.length));
@@ -306,7 +320,8 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
             m.deposit,
             m.speakerAddress,
             m.appliedAt,
-            m.checkedIn
+            m.checkedIn,
+            m.status
         );
     }
     
@@ -367,7 +382,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         returns(uint256)
     {
         uint256 secondsPassed = block.timestamp - auctionStart;
-        uint256 currentDiscount = (secondsPassed.div(TIMEFRAME)).mul(TIMEFRAME_DOWNGRADE);
+        uint256 currentDiscount = (secondsPassed.div(TIMEFRAME)).mul(BID_TIMEFRAME_DECREASE);
         
         if (currentDiscount < (INITIAL_PRICE - MINIMAL_PRICE)) {
             return INITIAL_PRICE.sub(currentDiscount);
@@ -392,7 +407,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         return MINIMAL_PRICE;
     }
     
-    function getMINIMAL_SPEAKER_DEPOSIT()
+    function getMinimalSpeakerDeposit()
         external
         pure
         returns(uint256)
@@ -457,7 +472,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         pure
         returns(string)
     { 
-        return EVENT_SPACE_NAME;
+        return CYBERCON_PLACE;
     }
     
     function getTalksGrid()
