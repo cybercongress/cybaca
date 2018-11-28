@@ -27,23 +27,31 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         string  proof;
     }
     
-    struct Bid {
+    struct Ticket {
         uint256 value;
         address bidderAddress;
+        bool    checkedIn;
+    }
+    
+    struct CommunityBuilderMessage {
+        string  message;
+        string  link1;
+        string  link2;
+        uint256 donation;
     }
     
     uint256 private auctionStart;
     uint256 constant private TALKS_APPLICATION_END = 1543339800;
-    uint256 private auctionEnd = 1543345200;
     uint256 constant private CHECKIN_START = 1543345200;
     uint256 constant private CHECKIN_END = 1543347000;
     uint256 constant private DISTRIBUTION_START = 1543348800;
+    uint256 private auctionEnd = CHECKIN_START;
     // ------------
     uint256 constant private INITIAL_PRICE = 1000 finney;
     uint256 constant private MINIMAL_PRICE = 40 finney;
-    uint256 private endPrice = 40 finney;
     uint256 constant private TIMEFRAME = 50;
     uint256 constant private BID_TIMEFRAME_DECREASE = 3 finney;
+    uint256 private endPrice = MINIMAL_PRICE;
     // ------------
     uint256 private ticketsAmount = 20;
     uint256 constant private SPEAKERS_SLOTS = 10;
@@ -59,8 +67,10 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     mapping(address => bool) private membersBidded;
     bool private overbidsDistributed = false;
     
-    Bid[]  private membersBids;
     Talk[] private speakersTalks;
+    Ticket[] private membersTickets;
+    CommunityBuilderMessage[] private communityBuildersBoard;
+    
     string private talksGrid = "";
     string private workshopsGrid = "";
     
@@ -121,7 +131,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         require(ticketsAmount > 0);
         
         uint256 bidId = totalSupply();
-        membersBids.push(Bid(msg.value, msg.sender));
+        membersTickets.push(Ticket(msg.value, msg.sender, false));
         super._mint(msg.sender, bidId);
         membersBidded[msg.sender] = true;
         ticketsFunds = ticketsFunds.add(msg.value);
@@ -168,6 +178,32 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         speakersTalks.push(t);
         
         emit TalkApplication(_speakerName, msg.sender, msg.value);
+    }
+    
+    function sendCommunityBuilderMessage(
+        uint256 _talkId,
+        string _message,
+        string _link1,
+        string _link2
+    )
+        external
+        beforeEventStart
+        onlyIfAddress(msg.sender)
+        nonReentrant
+        payable
+    {
+        require(speakersTalks[_talkId].speakerAddress == msg.sender);
+        require(speakersTalks[_talkId].status == ApplicationStatus.Accepted);
+        require(msg.value > 0);
+        
+        CommunityBuilderMessage memory m = (CommunityBuilderMessage(
+        {
+            message: _message,
+            link1:   _link1,
+            link2:   _link2,
+            donation: msg.value
+        }));
+        communityBuildersBoard.push(m);
     }
     
     function updateTalkDescription(
@@ -219,6 +255,14 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         address(speakersTalks[_talkId].speakerAddress).transfer(speakersTalks[_talkId].deposit);
     }
     
+    function checkinMember(uint256 _id)
+        external
+        duringEvent
+    {
+        require(membersTickets[_id].bidderAddress == msg.sender);
+        membersTickets[_id].checkedIn = true;
+    }
+    
     function checkinSpeaker(uint256 _talkId)
         external
         onlyOwner
@@ -243,8 +287,8 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         }
         uint256 ticketsForMembersSupply = totalSupply().sub(checkedInSpeakers);
         for (uint256 i = 0; i < ticketsForMembersSupply; i++) {
-            address bidderAddress = membersBids[i].bidderAddress;
-            uint256 overbid = (membersBids[i].value).sub(endPrice);
+            address bidderAddress = membersTickets[i].bidderAddress;
+            uint256 overbid = (membersTickets[i].value).sub(endPrice);
             address(bidderAddress).transfer(overbid);
         }
         overbidsDistributed = true;
@@ -261,7 +305,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
             for (uint256 i = 0; i < speakersTalks.length; i++){
                 if (speakersTalks[i].checkedIn) checkedInSpeakers++;
             }
-            uint256 valueForTicketsForReward = endPrice.mul(membersBids.length);
+            uint256 valueForTicketsForReward = endPrice.mul(membersTickets.length);
             uint256 valueFromTicketsForSpeakers = valueForTicketsForReward.mul(getSpeakersShares()).div(100);
             
             uint256 valuePerSpeakerFromTickets = valueFromTicketsForSpeakers.div(checkedInSpeakers);
@@ -320,14 +364,19 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         );
     }
     
-    function getBidForTicket(uint256 _id)
+    function getTicket(uint256 _id)
         external
         view
-        returns(uint256, address)
+        returns(
+            uint256,
+            address,
+            bool
+        )
     {
         return(
-            membersBids[_id].value,
-            membersBids[_id].bidderAddress
+            membersTickets[_id].value,
+            membersTickets[_id].bidderAddress,
+            membersTickets[_id].checkedIn
         );
     }
     
@@ -440,9 +489,12 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         returns(uint256)
     {
         uint256 time = auctionEnd;
-        if ( ticketsAmount > 0 ) time = block.timestamp;
+        if (ticketsAmount > 0 && block.timestamp < CHECKIN_START) {
+            time = block.timestamp;
+        }
         uint256 mul = time.sub(auctionStart).mul(100).div(CHECKIN_START.sub(auctionStart));
         uint256 shares = SPEAKERS_START_SHARES.sub(SPEAKERS_END_SHARES).mul(mul).div(100);
+        
         return SPEAKERS_END_SHARES.add(shares);
     }
     
@@ -484,5 +536,31 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         returns(string)
     {
         return workshopsGrid;
+    }
+    
+    function getCommunityBuilderMessage(uint256 _messageID)
+        external
+        view
+        returns(
+            string,
+            string,
+            string,
+            uint256
+        )
+    {
+        return(
+            communityBuildersBoard[_messageID].message,
+            communityBuildersBoard[_messageID].link1,
+            communityBuildersBoard[_messageID].link2,
+            communityBuildersBoard[_messageID].donation
+        );
+    }
+    
+    function getCommunityBuildersBoardSize()
+        external
+        view
+        returns(uint256)
+    {
+        return communityBuildersBoard.length;
     }
 }

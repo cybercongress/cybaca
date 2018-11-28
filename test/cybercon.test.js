@@ -51,7 +51,7 @@ contract("Cybercon", (accounts) => {
     
     const CYBERCON_NAME = "cyberc0n";
     const CYBERCON_SYMBOL = "CYBERC0N";
-    const CYBERCON_PLACE = "Korpus 8";
+    const CYBERCON_PLACE = "Korpus 8, Minsk, Belarus";
     
     const TICKETS_AMOUNT = 20;
     const SPEAKERS_SLOTS = 10;
@@ -79,11 +79,11 @@ contract("Cybercon", (accounts) => {
     })
     
     describe("when deployed", () => {
-        it("name should equeal", async() => {
+        it("name should equal", async() => {
             (await cybercon.name()).should.equal(CYBERCON_NAME);
         });
         
-        it("token symbol should equeal", async() => {
+        it("token symbol should equal", async() => {
             (await cybercon.symbol()).should.equal(CYBERCON_SYMBOL);
         });
         
