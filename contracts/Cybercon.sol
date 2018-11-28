@@ -54,7 +54,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     uint256 private ticketsFunds = 0;
     uint256 constant private MINIMAL_SPEAKER_DEPOSIT = 1000 finney;
     // ------------
-    string constant private CYBERCON_PLACE = "Korpus 8";
+    string constant private CYBERCON_PLACE = "Korpus 8, Minsk, Belarus";
     
     mapping(address => bool) private membersBidded;
     bool private overbidsDistributed = false;
