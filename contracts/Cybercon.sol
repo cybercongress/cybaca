@@ -41,20 +41,20 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     }
     
     uint256 private auctionStart;
-    uint256 constant private TALKS_APPLICATION_END = 1543339800;
-    uint256 constant private CHECKIN_START = 1543345200;
-    uint256 constant private CHECKIN_END = 1543347000;
-    uint256 constant private DISTRIBUTION_START = 1543348800;
+    uint256 constant private TALKS_APPLICATION_END = 1543509900;
+    uint256 constant private CHECKIN_START = 1543510800;
+    uint256 constant private CHECKIN_END = 1543512600;
+    uint256 constant private DISTRIBUTION_START = 1543513500;
     uint256 private auctionEnd = CHECKIN_START;
     // ------------
     uint256 constant private INITIAL_PRICE = 1000 finney;
-    uint256 constant private MINIMAL_PRICE = 40 finney;
+    uint256 constant private MINIMAL_PRICE = 100 finney;
     uint256 constant private TIMEFRAME = 50;
-    uint256 constant private BID_TIMEFRAME_DECREASE = 3 finney;
+    uint256 constant private BID_TIMEFRAME_DECREASE = 20 finney;
     uint256 private endPrice = MINIMAL_PRICE;
     // ------------
     uint256 private ticketsAmount = 20;
-    uint256 constant private SPEAKERS_SLOTS = 10;
+    uint256 constant private SPEAKERS_SLOTS = 5;
     uint256 private acceptedSpeakersSlots = 0;
     uint256 constant private SPEAKERS_START_SHARES = 80;
     uint256 constant private SPEAKERS_END_SHARES = 20;
