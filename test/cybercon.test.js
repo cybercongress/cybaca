@@ -54,22 +54,21 @@ contract("Cybercon", (accounts) => {
     const CYBERCON_SYMBOL = "CYBERC0N";
     const CYBERCON_PLACE = "Korpus 8, Minsk, Belarus";
     
-    const TICKETS_AMOUNT = 200;
-    const SPEAKERS_SLOTS = 12;
+    const TICKETS_AMOUNT = 146;
+    const SPEAKERS_SLOTS = 24;
     
     const SPEAKERS_START_SHARES = 80;
     const SPEAKERS_END_SHARES = 20;
     
-    const INITIAL_PRICE = web3.utils.toWei(new BN(2000), 'finney');
+    const INITIAL_PRICE = web3.utils.toWei(new BN(3000), 'finney');
     const MINIMAL_PRICE = web3.utils.toWei(new BN(500), 'finney');
-    const BID_TIMEFRAME_DECREASE = web3.utils.toWei(new BN(2), 'finney');
-    const TIMEFRAME = new BN('1200');
-    
-    const EXPECTED_START = 1543586400; // 30.11 17.00
-    const TALKS_APPLICATION_END = 1544475600 // 11.12 00.00
-    const CHECKIN_START = 1544765400; // 14.12 8.30
-    const CHECKIN_END = 1544792400; // 14.12 16.00
-    const DISTRIBUTION_START = 1544797800; // 14.12 17.30
+    const BID_TIMEFRAME_DECREASE = web3.utils.toWei(new BN(30), 'szabo');
+    const TIMEFRAME = new BN('13');
+    const EXPECTED_START = 1543591800; // 30.11 18.30
+    const TALKS_APPLICATION_END = 1544562000 // 11.12 00.00
+    const CHECKIN_START = 1544767200; // 14.12 9.00
+    const CHECKIN_END = 1544788800; // 14.12 15.00
+    const DISTRIBUTION_START = 1544792400; // 14.12 16.00
 
     before(async () => {
         await increaseTo(EXPECTED_START);

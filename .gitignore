@@ -1,7 +1,8 @@
 /node_modules
 /build
 
-infura_deploy.json
+infura_rinkeby_deploy.json
+infura_main_deploy.json
 cybercon0_full.sol
 
 .DS_Store

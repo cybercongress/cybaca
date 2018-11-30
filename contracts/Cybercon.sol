@@ -41,20 +41,20 @@ contract Cybercon is Ownable, ERC721Full {
     }
     
     uint256 private auctionStart;
-    uint256 constant private TALKS_APPLICATION_END = 1544475600;
-    uint256 constant private CHECKIN_START = 1544765400;
-    uint256 constant private CHECKIN_END = 1544792400;
-    uint256 constant private DISTRIBUTION_START = 1544797800;
+    uint256 constant private TALKS_APPLICATION_END = 1544562000;
+    uint256 constant private CHECKIN_START = 1544767200;
+    uint256 constant private CHECKIN_END = 1544788800;
+    uint256 constant private DISTRIBUTION_START = 1544792400;
     uint256 private auctionEnd = CHECKIN_START;
     // ------------
-    uint256 constant private INITIAL_PRICE = 2000 finney;
+    uint256 constant private INITIAL_PRICE = 3000 finney;
     uint256 constant private MINIMAL_PRICE = 500 finney;
-    uint256 constant private TIMEFRAME = 1200;
-    uint256 constant private BID_TIMEFRAME_DECREASE = 2 finney;
+    uint256 constant private TIMEFRAME = 13;
+    uint256 constant private BID_TIMEFRAME_DECREASE = 30 szabo;
     uint256 private endPrice = MINIMAL_PRICE;
     // ------------
-    uint256 private ticketsAmount = 200;
-    uint256 constant private SPEAKERS_SLOTS = 12;
+    uint256 private ticketsAmount = 146;
+    uint256 constant private SPEAKERS_SLOTS = 24;
     uint256 private acceptedSpeakersSlots = 0;
     uint256 constant private SPEAKERS_START_SHARES = 80;
     uint256 constant private SPEAKERS_END_SHARES = 20;
@@ -152,7 +152,7 @@ contract Cybercon is Ownable, ERC721Full {
     {
         require(_duration >= 900 && _duration <= 3600);
         require(msg.value >= MINIMAL_SPEAKER_DEPOSIT);
-        require(speakersTalks.length < 32);
+        require(speakersTalks.length < 36);
         
         Talk memory t = (Talk(
         {
@@ -171,7 +171,7 @@ contract Cybercon is Ownable, ERC721Full {
         
         emit TalkApplication(_speakerName, msg.sender, msg.value);
     }
-    
+
     function sendCommunityBuilderMessage(
         uint256 _talkId,
         string _message,
