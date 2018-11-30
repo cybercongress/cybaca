@@ -3,11 +3,10 @@ pragma solidity 0.4.25;
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import "openzeppelin-solidity/contracts/utils/ReentrancyGuard.sol";
 import "openzeppelin-solidity/contracts/utils/Address.sol";
 
 
-contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
+contract Cybercon is Ownable, ERC721Full {
     
     using SafeMath for uint256;
     using Address for address;
@@ -31,6 +30,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         uint256 value;
         address bidderAddress;
         bool    checkedIn;
+        bool    overbidReturned;
     }
     
     struct CommunityBuilderMessage {
@@ -41,20 +41,20 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     }
     
     uint256 private auctionStart;
-    uint256 constant private TALKS_APPLICATION_END = 1543509900;
-    uint256 constant private CHECKIN_START = 1543510800;
-    uint256 constant private CHECKIN_END = 1543512600;
-    uint256 constant private DISTRIBUTION_START = 1543513500;
+    uint256 constant private TALKS_APPLICATION_END = 1544475600;
+    uint256 constant private CHECKIN_START = 1544765400;
+    uint256 constant private CHECKIN_END = 1544792400;
+    uint256 constant private DISTRIBUTION_START = 1544797800;
     uint256 private auctionEnd = CHECKIN_START;
     // ------------
-    uint256 constant private INITIAL_PRICE = 1000 finney;
-    uint256 constant private MINIMAL_PRICE = 100 finney;
-    uint256 constant private TIMEFRAME = 50;
-    uint256 constant private BID_TIMEFRAME_DECREASE = 20 finney;
+    uint256 constant private INITIAL_PRICE = 2000 finney;
+    uint256 constant private MINIMAL_PRICE = 500 finney;
+    uint256 constant private TIMEFRAME = 1200;
+    uint256 constant private BID_TIMEFRAME_DECREASE = 2 finney;
     uint256 private endPrice = MINIMAL_PRICE;
     // ------------
-    uint256 private ticketsAmount = 20;
-    uint256 constant private SPEAKERS_SLOTS = 5;
+    uint256 private ticketsAmount = 200;
+    uint256 constant private SPEAKERS_SLOTS = 12;
     uint256 private acceptedSpeakersSlots = 0;
     uint256 constant private SPEAKERS_START_SHARES = 80;
     uint256 constant private SPEAKERS_END_SHARES = 20;
@@ -65,6 +65,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     string constant private CYBERCON_PLACE = "Korpus 8, Minsk, Belarus";
     
     mapping(address => bool) private membersBidded;
+    uint256 private amountReturnedBids = 0;
     bool private overbidsDistributed = false;
     
     Talk[] private speakersTalks;
@@ -94,11 +95,6 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     
     function() external {}
     
-    modifier onlyIfAddress(address _caller) {
-        require(_caller.isContract() == false);
-        _;
-    }
-    
     modifier beforeApplicationStop() {
         require(block.timestamp < TALKS_APPLICATION_END);
         _;
@@ -122,8 +118,6 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     function buyTicket()
         external
         beforeEventStart
-        onlyIfAddress(msg.sender)
-        nonReentrant
         payable
     {
         require(msg.value >= getCurrentPrice());
@@ -131,7 +125,7 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         require(ticketsAmount > 0);
         
         uint256 bidId = totalSupply();
-        membersTickets.push(Ticket(msg.value, msg.sender, false));
+        membersTickets.push(Ticket(msg.value, msg.sender, false, false));
         super._mint(msg.sender, bidId);
         membersBidded[msg.sender] = true;
         ticketsFunds = ticketsFunds.add(msg.value);
@@ -154,8 +148,6 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     )
         external
         beforeApplicationStop
-        onlyIfAddress(msg.sender)
-        nonReentrant
         payable
     {
         require(_duration >= 900 && _duration <= 3600);
@@ -188,8 +180,6 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     )
         external
         beforeEventStart
-        onlyIfAddress(msg.sender)
-        nonReentrant
         payable
     {
         require(speakersTalks[_talkId].speakerAddress == msg.sender);
@@ -214,8 +204,6 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
     )
         external
         beforeApplicationStop
-        onlyIfAddress(msg.sender)
-        nonReentrant
     {
         require(msg.sender == speakersTalks[_talkId].speakerAddress);
         speakersTalks[_talkId].descSpeaker = _descSpeaker;
@@ -240,19 +228,23 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         beforeEventStart
     {
         speakersTalks[_talkId].status = ApplicationStatus.Declined;
-        address(speakersTalks[_talkId].speakerAddress).transfer(speakersTalks[_talkId].deposit);
+        address speakerAddress = speakersTalks[_talkId].speakerAddress;
+        if (speakerAddress.isContract() == false) {
+            address(speakerAddress).transfer(speakersTalks[_talkId].deposit);
+        }
     }
     
     function selfDeclineTalk(uint256 _talkId)
         external
-        onlyIfAddress(msg.sender)
-        nonReentrant
     {
         require(block.timestamp >= TALKS_APPLICATION_END && block.timestamp < CHECKIN_START);
-        require(msg.sender == speakersTalks[_talkId].speakerAddress);
+        address speakerAddress = speakersTalks[_talkId].speakerAddress;
+        require(msg.sender == speakerAddress);
         require(speakersTalks[_talkId].status == ApplicationStatus.Applied);
         speakersTalks[_talkId].status = ApplicationStatus.Declined;
-        address(speakersTalks[_talkId].speakerAddress).transfer(speakersTalks[_talkId].deposit);
+        if (speakerAddress.isContract() == false) {
+            address(speakerAddress).transfer(speakersTalks[_talkId].deposit);
+        }
     }
     
     function checkinMember(uint256 _id)
@@ -276,22 +268,31 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         speakersTalks[_talkId].checkedIn = true;
     }
     
-    function distributeOverbids()
+    function distributeOverbids(uint256 _fromBid, uint256 _toBid)
         external
         onlyOwner
         afterDistributionStart
     {   
+        require(_fromBid <= _toBid);
         uint256 checkedInSpeakers = 0;
         for (uint256 y = 0; y < speakersTalks.length; y++){
             if (speakersTalks[y].checkedIn) checkedInSpeakers++;
         }
         uint256 ticketsForMembersSupply = totalSupply().sub(checkedInSpeakers);
-        for (uint256 i = 0; i < ticketsForMembersSupply; i++) {
+        require(_fromBid < ticketsForMembersSupply && _toBid < ticketsForMembersSupply);
+        for (uint256 i = _fromBid; i <= _toBid; i++) {
+            require(membersTickets[i].overbidReturned == false);
             address bidderAddress = membersTickets[i].bidderAddress;
             uint256 overbid = (membersTickets[i].value).sub(endPrice);
-            address(bidderAddress).transfer(overbid);
+            if(bidderAddress.isContract() == false) {
+                address(bidderAddress).transfer(overbid);
+            }
+            membersTickets[i].overbidReturned = true;
+            amountReturnedBids++;
         }
-        overbidsDistributed = true;
+        if (amountReturnedBids == ticketsForMembersSupply) {
+            overbidsDistributed = true;
+        }
     }
     
     function distributeRewards()
@@ -310,8 +311,9 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
             
             uint256 valuePerSpeakerFromTickets = valueFromTicketsForSpeakers.div(checkedInSpeakers);
             for (uint256 y = 0; y < speakersTalks.length; y++) {
-                if (speakersTalks[y].checkedIn) {
-                    address(speakersTalks[y].speakerAddress).transfer(valuePerSpeakerFromTickets.add(speakersTalks[y].deposit));
+                address speakerAddress = speakersTalks[y].speakerAddress;
+                if (speakersTalks[y].checkedIn == true && speakerAddress.isContract() == false) {
+                    speakerAddress.transfer(valuePerSpeakerFromTickets.add(speakersTalks[y].deposit));
                 }
             }
         }
@@ -370,13 +372,15 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         returns(
             uint256,
             address,
+            bool,
             bool
         )
     {
         return(
             membersTickets[_id].value,
             membersTickets[_id].bidderAddress,
-            membersTickets[_id].checkedIn
+            membersTickets[_id].checkedIn,
+            membersTickets[_id].overbidReturned
         );
     }
     
@@ -562,5 +566,13 @@ contract Cybercon is Ownable, ReentrancyGuard, ERC721Full {
         returns(uint256)
     {
         return communityBuildersBoard.length;
+    }
+    
+    function getAmountReturnedOverbids()
+        external
+        view
+        returns(uint256)
+    {
+        return amountReturnedBids;
     }
 }
