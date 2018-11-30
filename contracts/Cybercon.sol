@@ -40,7 +40,8 @@ contract Cybercon is Ownable, ERC721Full {
         uint256 donation;
     }
     
-    uint256 private auctionStart;
+    uint256 private auctionStartBlock;
+    uint256 private auctionStartTime;
     uint256 constant private TALKS_APPLICATION_END = 1544562000;
     uint256 constant private CHECKIN_START = 1544767200;
     uint256 constant private CHECKIN_END = 1544788800;
@@ -49,8 +50,7 @@ contract Cybercon is Ownable, ERC721Full {
     // ------------
     uint256 constant private INITIAL_PRICE = 3000 finney;
     uint256 constant private MINIMAL_PRICE = 500 finney;
-    uint256 constant private TIMEFRAME = 13;
-    uint256 constant private BID_TIMEFRAME_DECREASE = 30 szabo;
+    uint256 constant private BID_BLOCK_DECREASE = 30 szabo;
     uint256 private endPrice = MINIMAL_PRICE;
     // ------------
     uint256 private ticketsAmount = 146;
@@ -90,7 +90,8 @@ contract Cybercon is Ownable, ERC721Full {
     constructor() ERC721Full("cyberc0n", "CYBERC0N")
         public
     {
-        auctionStart = block.timestamp;
+        auctionStartBlock = block.number;
+        auctionStartTime = block.timestamp;
     }
     
     function() external {}
@@ -384,12 +385,20 @@ contract Cybercon is Ownable, ERC721Full {
         );
     }
     
+    function getAuctionStartBlock()
+        external
+        view
+        returns(uint256)
+    {
+        return auctionStartBlock;
+    }
+    
     function getAuctionStartTime()
         external
         view
         returns(uint256)
     {
-        return auctionStart;
+        return auctionStartTime;
     }
     
     function getAuctionEndTime()
@@ -429,8 +438,8 @@ contract Cybercon is Ownable, ERC721Full {
         view
         returns(uint256)
     {
-        uint256 secondsPassed = block.timestamp - auctionStart;
-        uint256 currentDiscount = (secondsPassed.div(TIMEFRAME)).mul(BID_TIMEFRAME_DECREASE);
+        uint256 blocksPassed = block.number - auctionStartBlock;
+        uint256 currentDiscount = blocksPassed.mul(BID_BLOCK_DECREASE);
         
         if (currentDiscount < (INITIAL_PRICE - MINIMAL_PRICE)) {
             return INITIAL_PRICE.sub(currentDiscount);
@@ -496,7 +505,7 @@ contract Cybercon is Ownable, ERC721Full {
         if (ticketsAmount > 0 && block.timestamp < CHECKIN_START) {
             time = block.timestamp;
         }
-        uint256 mul = time.sub(auctionStart).mul(100).div(CHECKIN_START.sub(auctionStart));
+        uint256 mul = time.sub(auctionStartTime).mul(100).div(CHECKIN_START.sub(auctionStartTime));
         uint256 shares = SPEAKERS_START_SHARES.sub(SPEAKERS_END_SHARES).mul(mul).div(100);
         
         return SPEAKERS_END_SHARES.add(shares);
