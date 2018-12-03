@@ -9,6 +9,7 @@ npm i
 ```
 ganache-cli -p 8545 -a 250 -e 100
 ```
+Note: tests pass for commit 1563874b1fc242a99228c868792f5869c4a38913, please checkout
 
 ### Migration
 ```
