@@ -1,26 +1,21 @@
 {
-  "name": "cybercon0",
+  "name": "cybaca",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "",
   "scripts": {},
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "@litvintech",
+  "license": "MIT",
   "dependencies": {
+    "@openzeppelin/contracts": "^2.3.0",
     "bn-chai": "^1.0.1",
-    "bn.js": "^4.11.8",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
     "eth-gas-reporter": "^0.1.12",
     "ethjs-unit": "^0.1.6",
-    "ganache-cli": "^6.2.1",
     "mocha": "^5.2.0",
-    "openzeppelin-solidity": "^2.0.0",
-    "solc": "^0.4.25",
-    "truffle": "^5.0.0-next.17",
-    "truffle-hdwallet-provider": "^1.0.0-web3one.1",
-    "web3": "^1.0.0-beta.36"
-  },
-  "devDependencies": {}
+    "openzeppelin-test-helpers": "^0.4.2",
+    "truffle-hdwallet-provider": "^1.0.16"
+  }
 }

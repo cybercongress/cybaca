@@ -31,15 +31,21 @@ module.exports = {
         
         development: {
             host: "localhost",
-            port: 8545,
+            port: 7545,
             network_id: "5777"
         }
     },
     
-    solc: {
-        optimizer: {
-            enabled: true,
-            runs: 500
+    compilers: {
+        solc: {
+          version: "0.5.0",
+          settings: {
+            optimizer: {
+              enabled: true,
+              runs: 500
+            },
+            evmVersion: "byzantium"
+          }
         }
     },
     
