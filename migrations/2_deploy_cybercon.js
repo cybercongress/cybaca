@@ -1,4 +1,7 @@
 var Cybercon = artifacts.require("Cybercon");
+const Web3 = require('web3');
+const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:7545'));
+require('openzeppelin-test-helpers/configure')({ web3: web3 });
 const { BN } = require('openzeppelin-test-helpers');
 
 module.exports = async function(deployer) {
